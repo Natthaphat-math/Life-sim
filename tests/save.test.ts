@@ -50,6 +50,18 @@ describe('save system', () => {
     expect(migrate({ ...save, version: 0 })).toBeNull();
   });
 
+  it('migrates a v1 save (English-only stored text) to per-locale texts', () => {
+    const g = Game.create(content, { name: 'Old', seed: 'v1' });
+    g.advance();
+    g.choose(g.visibleChoices()[0]!.id);
+    const v2 = JSON.parse(JSON.stringify(g.state));
+    const { texts, ...phase } = v2.phase;
+    const v1 = { version: 1, savedAt: '', state: { ...v2, phase: { ...phase, text: texts.en } } };
+    const res = importSave(JSON.stringify(v1));
+    expect(res.status).toBe('ok');
+    if (res.status === 'ok') expect(res.state.phase).toEqual(v2.phase);
+  });
+
   it('keeps a capped, newest-first archive of lives and ignores junk', () => {
     const storage = new MemorySaveStorage();
     const g = Game.create(content, { name: 'L', seed: 'life' });
@@ -63,6 +75,10 @@ describe('save system', () => {
   it('falls back to default settings on bad data', () => {
     const storage = new MemorySaveStorage();
     storage.write('lifesim.settings', '{"warningLevel":"sometimes","theme":"dark"}');
-    expect(loadSettings(storage)).toEqual({ warningLevel: 'heavyOnly', theme: 'dark' });
+    expect(loadSettings(storage)).toEqual({ warningLevel: 'heavyOnly', theme: 'dark', language: 'th' });
+    storage.write('lifesim.settings', '{"language":"en"}');
+    expect(loadSettings(storage).language).toBe('en');
+    storage.write('lifesim.settings', '{"language":"fr"}');
+    expect(loadSettings(storage).language).toBe('th');
   });
 });

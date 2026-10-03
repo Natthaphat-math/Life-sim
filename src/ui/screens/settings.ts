@@ -3,6 +3,7 @@ import type { App } from '../app';
 import { confirmModal } from '../components/modal';
 import { h } from '../dom';
 import type { Theme } from '../../save/settings';
+import type { Locale } from '../../engine/i18n';
 
 function radioGroup<T extends string>(
   name: string,
@@ -38,6 +39,7 @@ export function renderSettings(app: App, back: () => void): HTMLElement {
     'section',
     { class: 'settings' },
     h('h1', {}, t.settingsTitle),
+    radioGroup<Locale>('language', t.languageLabel, t.languages, app.settings.language, (v) => app.setLanguage(v)),
     radioGroup<WarningLevel>('warn', t.warningLevelLabel, t.warningLevels, app.settings.warningLevel, (v) =>
       app.updateSettings({ ...app.settings, warningLevel: v }),
     ),

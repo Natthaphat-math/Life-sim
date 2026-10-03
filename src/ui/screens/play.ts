@@ -1,4 +1,3 @@
-import { content } from '../../content';
 import type { Game } from '../../engine/game';
 import { INCLINATIONS, TRAITS } from '../../engine/types';
 import type { App } from '../app';
@@ -13,12 +12,12 @@ export function renderPhase(app: App, g: Game): HTMLElement {
     case 'birth':
       return card(app, g, app.t.birthTitle, paragraphs(g.birthNarrative()), continueButton(app));
     case 'bridge':
-      return card(app, g, app.t.bridgeTitle, paragraphs(p.text), continueButton(app));
+      return card(app, g, app.t.bridgeTitle, paragraphs(g.storedText(p.texts)), continueButton(app));
     case 'outcome': {
       const ev = g.currentEvent;
       const body = [
         ...(p.skipped ? [h('p', { class: 'tag' }, app.t.skipped)] : []),
-        ...paragraphs(p.text),
+        ...paragraphs(g.storedText(p.texts)),
       ];
       return card(app, g, ev ? g.render(ev.title) : '', body, continueButton(app));
     }
@@ -123,17 +122,17 @@ function card(app: App, g: Game, title: string, body: Node[], actions: HTMLEleme
     h('div', { class: 'illustration', hidden: true }),
     h('div', { class: 'card-body' }, title ? h('h1', {}, title) : null, body),
     actions,
-    app.debug ? debugPanel(g) : null,
+    app.debug ? debugPanel(app, g) : null,
   );
 }
 
-function debugPanel(g: Game): HTMLElement {
+function debugPanel(app: App, g: Game): HTMLElement {
   const s = g.state;
   const row = (k: string, v: number) => `${k} ${Math.round(v)}`;
   return h(
     'details',
     { class: 'debug' },
-    h('summary', {}, content.strings.debugTitle),
+    h('summary', {}, app.t.debugTitle),
     h('p', {}, `seed ${s.seed} · ${s.character.gender} · ${JSON.stringify(s.birth)}`),
     h('p', {}, TRAITS.map((k) => row(k, s.traits[k])).join(' · ')),
     h('p', {}, [row('stress', s.stress), ...INCLINATIONS.map((k) => row(k, s.inclinations[k]))].join(' · ')),

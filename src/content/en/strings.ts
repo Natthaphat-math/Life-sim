@@ -51,6 +51,7 @@ export const strings = {
   replay: 'Live another life',
   toTitle: 'Back to title',
   moments: 'Moments',
+  showTable: 'Show as table',
 
   compareTitle: 'Previous lives',
   compareEmpty: 'Finished lives will appear here, so you can compare them.',
@@ -59,6 +60,8 @@ export const strings = {
   clearLivesConfirm: 'Forget all previous lives? This cannot be undone.',
 
   settingsTitle: 'Settings',
+  languageLabel: 'Language',
+  languages: { th: 'ไทย', en: 'English' },
   warningLevelLabel: 'Sensitive content warnings',
   warningLevels: { every: 'Warn every time', heavyOnly: 'Warn for heavy only', never: 'Never warn' },
   themeLabel: 'Theme',

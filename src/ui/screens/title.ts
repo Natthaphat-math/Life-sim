@@ -1,4 +1,5 @@
 import type { App } from '../app';
+import { LOCALES } from '../../engine/i18n';
 import { h } from '../dom';
 
 export function renderTitle(app: App): HTMLElement {
@@ -7,6 +8,24 @@ export function renderTitle(app: App): HTMLElement {
   return h(
     'section',
     { class: 'title-screen' },
+    // Quick language switch, also available in Settings.
+    h(
+      'div',
+      { class: 'lang-switch', role: 'group', 'aria-label': t.languageLabel },
+      LOCALES.map((l) =>
+        h(
+          'button',
+          {
+            type: 'button',
+            class: l === app.settings.language ? 'on' : '',
+            'aria-pressed': l === app.settings.language ? 'true' : 'false',
+            lang: l,
+            onclick: () => app.setLanguage(l),
+          },
+          t.languages[l],
+        ),
+      ),
+    ),
     h('div', { class: 'title-block' }, h('h1', {}, t.appTitle), h('p', { class: 'muted' }, t.tagline)),
     h(
       'div',

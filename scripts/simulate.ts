@@ -5,12 +5,14 @@
  *   npm run sim -- --lives 5000 --seed tune1
  *   npm run sim -- --skip 0.2        # skip 20% of sensitive events
  *   npm run sim -- --json out.json   # also write raw numbers
+ *   npm run sim -- --locale en       # play in English (default: th)
  *
  * Reports trait/stress/inclination distributions, events per life, event and
  * option coverage (what never appears), flag frequency and runtime errors.
  */
 import { writeFileSync } from 'node:fs';
-import { content } from '../src/content';
+import { contents } from '../src/content';
+import type { Locale } from '../src/engine/i18n';
 import { Game } from '../src/engine/game';
 import { Rng } from '../src/engine/rng';
 import { INCLINATIONS, TRAITS } from '../src/engine/types';
@@ -25,6 +27,9 @@ const LIVES = Number(arg('lives', '1000'));
 const SEED = arg('seed', 'sim');
 const SKIP_RATE = Number(arg('skip', '0.1'));
 const JSON_OUT = arg('json', '');
+const LOCALE = arg('locale', 'th') as Locale;
+const content = contents[LOCALE];
+if (!content) throw new Error(`Unknown locale ${LOCALE}`);
 const MAX_STEPS = 500;
 
 const traitValues: Record<string, number[]> = {};
@@ -43,7 +48,7 @@ const decide = Rng.fromSeed(`${SEED}-choices`);
 for (let i = 0; i < LIVES; i++) {
   const seed = `${SEED}-${i}`;
   try {
-    const game = Game.create(content, { name: 'Sim', seed });
+    const game = Game.create(content, { name: 'Sim', seed, locales: Object.values(contents) });
     const s = game.state;
     let steps = 0;
     while (s.phase.kind !== 'stageEnd') {
@@ -95,7 +100,7 @@ const stats = (xs: number[]) => {
 };
 const f = (n: number) => n.toFixed(1).padStart(6);
 
-console.log(`\nLife Sim — ${LIVES} simulated lives (seed "${SEED}", skip rate ${SKIP_RATE})\n`);
+console.log(`\nLife Sim — ${LIVES} simulated lives (seed "${SEED}", skip rate ${SKIP_RATE}, locale ${LOCALE})\n`);
 console.log('Distribution          mean     sd    min    p10    p50    p90    max');
 for (const [k, xs] of Object.entries(traitValues)) {
   const s = stats(xs);

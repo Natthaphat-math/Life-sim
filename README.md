@@ -12,6 +12,35 @@ on every push to `main` by `.github/workflows/deploy.yml`, after the tests and
 content validator pass). Saves stay in your own browser's localStorage; nothing
 is sent anywhere.
 
+## Languages
+
+The game ships in **Thai (default)** and **English**. Players switch with the
+ไทย / English toggle on the title screen or in Settings, at any time, even
+mid-life. The choice is remembered per browser.
+
+How it works:
+
+- Events are authored once, in English, in `src/content/en/`, together with
+  all their logic (conditions, effects, follow-ups).
+- A translation is a **text-only pack**, e.g. `src/content/th/`, that mirrors
+  the English structure by id: `events/` (title, text, skip, each choice and
+  sub-choice by id, variant texts by index), `reactions.ts`, `stages.ts`,
+  `narrative.ts`, `strings.ts`, `vars.ts`.
+- `localize()` (`src/engine/i18n.ts`) merges a pack onto the English content,
+  so every language shares exactly the same rules and balance (a test checks
+  this). Missing text falls back to English and `npm run validate` reports it
+  as an error.
+- Text already shown and saved (outcomes, bridges) is stored in every language,
+  so switching mid-life never shows stale text.
+
+Thai style notes: the child is addressed as **หนู** (gender-neutral, natural
+when speaking to a small child). Thai repeats kinship words instead of
+pronouns, so `{cg_he}`/`{cg_him}`/`{cg_his}` all resolve to the caregiver word
+(แม่, พ่อ, ยาย, ตา, ป้า, ลุง).
+
+To add a language: add its code to `LOCALES` in `src/engine/i18n.ts`, create
+`src/content/<code>/` like `th/`, and register it in `src/content/index.ts`.
+
 ## Running it
 
 ```bash
@@ -237,6 +266,7 @@ npm run sim                              # 1000 lives, seed "sim"
 npm run sim -- --lives 5000 --seed t2    # more lives, different seed
 npm run sim -- --skip 0.3                # skip 30% of sensitive events
 npm run sim -- --json sim.json           # write raw numbers too
+npm run sim -- --locale en               # play in English (default: th)
 ```
 
 It plays lives with random choices and reports trait, stress and inclination
@@ -248,7 +278,8 @@ is also run through a save/load round trip.
 ## Saves
 
 - Autosave after every resolution to `localStorage` (`lifesim.save`), with a
-  `version` and `migrate()` hook in `src/save/migrations.ts`.
+  `version` and `migrate()` hook in `src/save/migrations.ts`. Version 2 added
+  per-language stored text; v1 saves are upgraded automatically.
 - Storage goes through the `SaveStorage` interface. `exportSave(state)` and
   `importSave(json)` in `saveManager.ts` are already the export/import format,
   so a JSON import/export UI only needs buttons.

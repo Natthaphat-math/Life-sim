@@ -290,8 +290,9 @@ export type Phase =
       /** Tier-1 choice already made (final); waiting for a sub-choice. */
       tier1?: string;
     }
-  | { kind: 'outcome'; eventId: string; text: string; skipped: boolean }
-  | { kind: 'bridge'; text: string }
+  /** `texts` holds the rendered text per locale, e.g. { th: '…', en: '…' }. */
+  | { kind: 'outcome'; eventId: string; texts: Record<string, string>; skipped: boolean }
+  | { kind: 'bridge'; texts: Record<string, string> }
   | { kind: 'stageEnd'; stageId: StageId };
 
 export interface GameState {

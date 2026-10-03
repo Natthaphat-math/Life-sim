@@ -14,8 +14,9 @@ export const MAX_SERIES = SERIES_VARS.length;
  * legend when there are 2+ series, a hover/tap tooltip per point and a
  * table view for exact values.
  */
-export function radarChart(axes: string[], series: RadarSeries[], caption: string): HTMLElement {
-  const W = 360;
+export function radarChart(axes: string[], series: RadarSeries[], caption: string, tableLabel: string): HTMLElement {
+  // Wide viewBox leaves room for long axis labels on the left and right.
+  const W = 400;
   const H = 320;
   const cx = W / 2;
   const cy = H / 2;
@@ -84,7 +85,7 @@ export function radarChart(axes: string[], series: RadarSeries[], caption: strin
 
   wrap.append(h('div', { class: 'chart-plot' }, svg, tooltip));
   if (series.length > 1) wrap.append(legend(series.map((x) => x.label)));
-  wrap.append(tableView(caption, axes, series));
+  wrap.append(tableView(caption, axes, series, tableLabel));
   return wrap;
 }
 
@@ -98,11 +99,11 @@ export function legend(labels: string[]): HTMLElement {
   );
 }
 
-function tableView(caption: string, axes: string[], series: RadarSeries[]): HTMLElement {
+function tableView(caption: string, axes: string[], series: RadarSeries[], tableLabel: string): HTMLElement {
   return h(
     'details',
     { class: 'table-view' },
-    h('summary', {}, 'Show as table'),
+    h('summary', {}, tableLabel),
     h(
       'table',
       {},

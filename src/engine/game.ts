@@ -12,6 +12,7 @@ import {
   type BirthCircumstances,
   type Choice,
   type GameEvent,
+  type Outcome,
   type GameState,
   type Gender,
   type Sensitivity,
@@ -29,12 +30,25 @@ import {
  */
 export class Game {
   readonly idx: ContentIndex;
+  /**
+   * Every language this build ships. Texts the player has already seen and that
+   * are stored in the save (outcomes, bridges) are rendered in all of them, so
+   * switching language mid-life never shows a stale language.
+   */
+  readonly locales: Content[];
 
   constructor(
     readonly content: Content,
     readonly state: GameState,
+    opts: { locales?: Content[] } = {},
   ) {
     this.idx = indexContent(content);
+    this.locales = opts.locales?.length ? opts.locales : [content];
+  }
+
+  /** Same life, rendered in another language. */
+  withContent(content: Content): Game {
+    return new Game(content, this.state, { locales: this.locales });
   }
 
   // -------------------------------------------------------------------------
@@ -47,7 +61,7 @@ export class Game {
    */
   static create(
     content: Content,
-    opts: { name: string; seed: string; birth?: BirthCircumstances; gender?: Gender },
+    opts: { name: string; seed: string; birth?: BirthCircumstances; gender?: Gender; locales?: Content[] },
   ): Game {
     const rng = Rng.fromSeed(opts.seed);
     const gender = opts.gender ?? randomGender(rng);
@@ -71,7 +85,7 @@ export class Game {
     };
     applyBirthModifiers(state, rng, content);
     state.rng = rng.getState();
-    return new Game(content, state);
+    return new Game(content, state, { locales: opts.locales });
   }
 
   // -------------------------------------------------------------------------
@@ -85,6 +99,11 @@ export class Game {
 
   render(text: Parameters<typeof renderText>[0]): string {
     return renderText(text, this.state, this.content);
+  }
+
+  /** Stored text of an outcome or bridge, in the current language. */
+  storedText(texts: Record<string, string>): string {
+    return texts[this.content.locale] ?? Object.values(texts)[0] ?? '';
   }
 
   birthNarrative(): string {
@@ -157,10 +176,15 @@ export class Game {
       const r = this.content.rules;
       s.stress += (r.stressDefault - s.stress) * r.stressRecoveryBetweenSegments;
       if (seg.bridge) {
-        const text = this.render(seg.bridge.text); // render before effects
+        const segIndex = s.progress.segmentIndex - 1;
+        // Render before the effects land.
+        const texts = this.renderAll((c) => {
+          const b = c.stages.find((st) => st.id === stage.id)?.segments[segIndex]?.bridge;
+          return renderText(b?.text, s, c);
+        });
         applyEffects(s, seg.bridge.effects, 1, this.content.rules);
-        if (text) {
-          s.phase = { kind: 'bridge', text };
+        if (this.storedText(texts)) {
+          s.phase = { kind: 'bridge', texts };
           break;
         }
       }
@@ -181,10 +205,10 @@ export class Game {
   skipEvent(): void {
     const s = this.state;
     const ev = this.requireEventPhase();
-    const text = this.render(ev.skip?.text);
+    const texts = this.renderAll((c) => renderText(eventIn(c, ev.id).skip?.text, s, c));
     applyEffects(s, ev.skip?.effects, eventMultiplier(ev, s.character.ageMonths, this.content.rules), this.content.rules);
     s.history.push({ eventId: ev.id, ageMonths: s.character.ageMonths, skipped: true });
-    s.phase = { kind: 'outcome', eventId: ev.id, text, skipped: true };
+    s.phase = { kind: 'outcome', eventId: ev.id, texts, skipped: true };
   }
 
   /**
@@ -220,8 +244,11 @@ export class Game {
   private resolve(ev: GameEvent, choiceId: string, subChoiceId: string | undefined, outcome: Choice['outcome'] & {}): void {
     const s = this.state;
     const res = resolveOutcome(outcome, s, this.content);
-    // Render with the state *before* the effects land.
-    const text = joinParagraphs(...res.texts.map((t) => this.render(t)));
+    // Render (in every language) with the state *before* the effects land.
+    const texts = this.renderAll((c) => {
+      const localOutcome = outcomeIn(eventIn(c, ev.id), choiceId, subChoiceId);
+      return joinParagraphs(...resolveOutcome(localOutcome, s, c).texts.map((t) => renderText(t, s, c)));
+    });
     const mult = eventMultiplier(ev, s.character.ageMonths, this.content.rules);
     for (const e of res.effects) applyEffects(s, e, mult, this.content.rules);
     if (res.followUp) {
@@ -231,7 +258,11 @@ export class Game {
       });
     }
     s.history.push({ eventId: ev.id, ageMonths: s.character.ageMonths, choiceId, subChoiceId });
-    s.phase = { kind: 'outcome', eventId: ev.id, text, skipped: false };
+    s.phase = { kind: 'outcome', eventId: ev.id, texts, skipped: false };
+  }
+
+  private renderAll(fn: (c: Content) => string): Record<string, string> {
+    return Object.fromEntries(this.locales.map((c) => [c.locale, fn(c)]));
   }
 
   private requireEventPhase(): GameEvent {
@@ -245,6 +276,19 @@ export class Game {
     if (!c) throw new Error(`Choice "${id}" not found in "${ev.id}"`);
     return c;
   }
+}
+
+function eventIn(c: Content, id: string): GameEvent {
+  const ev = c.events.find((e) => e.id === id);
+  if (!ev) throw new Error(`Event "${id}" missing in locale ${c.locale}`);
+  return ev;
+}
+
+function outcomeIn(ev: GameEvent, choiceId: string, subChoiceId?: string): Outcome {
+  const choice = ev.choices.find((c) => c.id === choiceId);
+  const out = subChoiceId ? choice?.subChoices?.find((sc) => sc.id === subChoiceId)?.outcome : choice?.outcome;
+  if (!out) throw new Error(`Outcome ${ev.id}/${choiceId}/${subChoiceId ?? ''} not found`);
+  return out;
 }
 
 const SENSITIVITY_RANK: Record<Sensitivity, number> = { none: 0, mild: 1, moderate: 2, heavy: 3 };

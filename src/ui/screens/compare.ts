@@ -30,6 +30,7 @@ export function renderCompare(app: App, back: () => void): HTMLElement {
           TRAITS.map((k) => t.traitNames[k]),
           chosen.map((l) => ({ label: l.name, values: TRAITS.map((k) => l.traits[k]) })),
           t.chartTraits,
+          t.showTable,
         )
       : null;
 

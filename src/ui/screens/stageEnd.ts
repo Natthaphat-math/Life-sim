@@ -1,4 +1,3 @@
-import { content } from '../../content';
 import type { Game } from '../../engine/game';
 import { summarize } from '../../engine/narrative';
 import { INCLINATIONS, TRAITS } from '../../engine/types';
@@ -13,11 +12,12 @@ import { h } from '../dom';
 export function renderStageEnd(app: App, g: Game): HTMLElement {
   const t = app.t;
   const s = g.state;
+  const content = g.content;
   const stage = content.stages.find((st) => st.id === s.character.stage);
   const summary = summarize(s, content, s.character.stage);
 
   const axes = TRAITS.map((k) => t.traitNames[k]);
-  const radar = radarChart(axes, [{ label: s.character.name, values: TRAITS.map((k) => s.traits[k]) }], t.chartTraits);
+  const radar = radarChart(axes, [{ label: s.character.name, values: TRAITS.map((k) => s.traits[k]) }], t.chartTraits, t.showTable);
 
   // Inclinations are small early on, so they are scaled to the largest one
   // (the printed numbers stay exact).

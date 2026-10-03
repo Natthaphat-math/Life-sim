@@ -1,4 +1,7 @@
-import { content } from '../content';
+import { contents } from '../content';
+import type { Content } from '../engine/content';
+import type { Locale } from '../engine/i18n';
+import type { GameState } from '../engine/types';
 import type { Strings } from '../content/en/strings';
 import { Game } from '../engine/game';
 import { randomSeed } from '../engine/rng';
@@ -20,7 +23,6 @@ import { renderTitle } from './screens/title';
  * resolution is saved immediately and the screen is rebuilt from the save.
  */
 export class App {
-  readonly t: Strings = content.strings;
   readonly storage: SaveStorage = new LocalSaveStorage();
   readonly saves = new SaveManager(this.storage);
   settings: Settings = loadSettings(this.storage);
@@ -35,11 +37,26 @@ export class App {
     this.debug = params.get('debug') === '1';
     this.seedParam = params.get('seed');
     this.applyTheme();
+    this.applyLanguage();
+  }
+
+  /** Content in the player's chosen language (all languages share the same rules). */
+  get content(): Content<Strings> {
+    return contents[this.settings.language];
+  }
+
+  /** UI strings in the player's chosen language. */
+  get t(): Strings {
+    return this.content.strings;
+  }
+
+  private newGame(state: GameState): Game {
+    return new Game(this.content, state, { locales: Object.values(contents) });
   }
 
   start(): void {
     const res = this.saves.load();
-    if (res.status === 'ok') this.game = new Game(content, res.state);
+    if (res.status === 'ok') this.game = this.newGame(res.state);
     this.goTitle();
     if (res.status === 'corrupt') {
       console.warn('Save could not be loaded:', res.reason);
@@ -50,7 +67,11 @@ export class App {
 
   // --- Screen switching ----------------------------------------------------
 
-  show(screen: HTMLElement): void {
+  /** Rebuilds the current screen, e.g. after the language changes. */
+  private rerender: () => void = () => this.goTitle();
+
+  show(screen: HTMLElement, rerender?: () => void): void {
+    if (rerender) this.rerender = rerender;
     const main = h('main', { class: 'screen' }, screen);
     this.root.replaceChildren(main);
     // Move focus to the new screen's heading for keyboard and screen-reader users.
@@ -63,7 +84,7 @@ export class App {
   }
 
   goTitle(): void {
-    this.show(renderTitle(this));
+    this.show(renderTitle(this), () => this.goTitle());
   }
 
   hasActiveLife(): boolean {
@@ -71,14 +92,14 @@ export class App {
   }
 
   newLife(): void {
-    this.show(renderName(this));
+    this.show(renderName(this), () => this.newLife());
   }
 
   /** Called from the name screen after the sensitive-content notice. */
   beginLife(name: string): void {
     // The same ?seed= always replays the same life (useful for debugging).
     const seed = this.seedParam ?? randomSeed();
-    this.game = Game.create(content, { name, seed });
+    this.game = Game.create(this.content, { name, seed, locales: Object.values(contents) });
     this.persist();
     this.play();
   }
@@ -92,11 +113,11 @@ export class App {
     if (!this.game) return this.goTitle();
     const g = this.game;
     if (g.state.phase.kind === 'stageEnd' && !g.state.archived) {
-      addLife(this.storage, toRecord(g.state), content.rules.archiveLimit);
+      addLife(this.storage, toRecord(g.state), this.content.rules.archiveLimit);
       g.state.archived = true;
       this.persist();
     }
-    this.show(renderPhase(this, g));
+    this.show(renderPhase(this, g), () => this.play());
   }
 
   /** Run a state transition, autosave, and re-render. */
@@ -121,17 +142,30 @@ export class App {
   }
 
   openSettings(back: () => void): void {
-    this.show(renderSettings(this, back));
+    this.show(renderSettings(this, back), () => this.openSettings(back));
   }
 
   openCompare(back: () => void): void {
-    this.show(renderCompare(this, back));
+    this.show(renderCompare(this, back), () => this.openCompare(back));
   }
 
   updateSettings(next: Settings): void {
     this.settings = next;
     saveSettings(this.storage, next);
     this.applyTheme();
+  }
+
+  /** Switch language and redraw the current screen in place. */
+  setLanguage(language: Locale): void {
+    if (language === this.settings.language) return;
+    this.updateSettings({ ...this.settings, language });
+    this.applyLanguage();
+    if (this.game) this.game = this.game.withContent(this.content);
+    this.rerender();
+  }
+
+  private applyLanguage(): void {
+    document.documentElement.lang = this.settings.language;
   }
 
   private applyTheme(): void {

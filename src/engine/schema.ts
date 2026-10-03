@@ -156,8 +156,8 @@ const slotSchema = z.union([
 export const phaseSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('birth') }),
   z.strictObject({ kind: z.literal('event'), eventId: z.string(), gatePassed: z.boolean(), tier1: z.string().optional() }),
-  z.strictObject({ kind: z.literal('outcome'), eventId: z.string(), text: z.string(), skipped: z.boolean() }),
-  z.strictObject({ kind: z.literal('bridge'), text: z.string() }),
+  z.strictObject({ kind: z.literal('outcome'), eventId: z.string(), texts: z.record(z.string(), z.string()), skipped: z.boolean() }),
+  z.strictObject({ kind: z.literal('bridge'), texts: z.record(z.string(), z.string()) }),
   z.strictObject({ kind: z.literal('stageEnd'), stageId: z.enum(STAGE_IDS) }),
 ]);
 
